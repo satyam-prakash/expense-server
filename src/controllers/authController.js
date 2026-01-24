@@ -1,5 +1,6 @@
+
 const userDao = require('../dao/userDao');
-const users = require('../dao/userDb')
+const bcrypt = require('bcryptjs');
 
 
 const authController = {
@@ -10,9 +11,11 @@ const authController = {
         message: "Please enter both email and passwor",
       });
     }
-
+    
     const user = await userDao.findByEmail(email);
-    if (user && user.password === password){
+const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if (user && isPasswordMatch){
       return response.status(200).json({
         message: "Successfully logged in!",
         user: user
@@ -34,17 +37,30 @@ const authController = {
         message: 'Name, Email, Password all are required.'
       });
     }
-    const user = await userDao.create({
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    userDao.create({
       name : name,
       email: email,
-      password: password
+      password: hashedPassword
+    }).then(u => {
+      return response.status(200).json({
+        message: 'User registered successfully',
+        user: {id: u._id}
+      });      
     })
-    // Return status 200 when regsitration is successfully done
-    return response.status(200).json({
-      message: "Successfully registered",
-      user: {id: user.id} 
+    .catch (error => {
+      if (error.code === 'USER_EXISTS'){
+        return response.status(400).json({
+          message: 'User with this email already exists'
+        });
+      }else{
+        return response.status(500).json({
+          message: 'Registration failed',
+        });
+      }
     });
-  },
+  }
 
       
 };
