@@ -1,14 +1,14 @@
 
 const userDao = require('../dao/userDao');
 const bcrypt = require('bcryptjs');
-
+const jwt = require('jsonwebtoken');
 
 const authController = {
   login: async (request, response) => {
     const {email, password} = request.body;
     if (!email && !password){
       return response.status(400).json({
-        message: "Please enter both email and passwor",
+        message: "Please enter both email and password",
       });
     }
     
@@ -16,6 +16,19 @@ const authController = {
 const isPasswordMatch = await bcrypt.compare(password, user.password);
 
     if (user && isPasswordMatch){
+      const token = jwt.sign({
+        name: user.name,
+        email: user.email,
+        id: user._id
+      }, process.env.JWT_SECRET, {
+        expiresIn: '1h'
+      });
+      response.cookie('jwtToken',token,{
+        httpOnly: true,
+        secure: true,
+        domain: 'localhost',
+        path: '/'
+      });
       return response.status(200).json({
         message: "Successfully logged in!",
         user: user
