@@ -5,42 +5,55 @@ const jwt = require('jsonwebtoken');
 
 const authController = {
   login: async (request, response) => {
-    const {email, password} = request.body;
-    if (!email && !password){
-      return response.status(400).json({
-        message: "Please enter both email and password",
+    try {
+      const {email, password} = request.body;
+      if (!email || !password){
+        return response.status(400).json({
+          message: "Please enter both email and password",
+        });
+      }
+      
+      const user = await userDao.findByEmail(email);
+      
+      if (!user) {
+        return response.status(400).json({
+          message: "Invalid email or password",
+        });
+      }
+      
+      const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+      if (isPasswordMatch){
+        const token = jwt.sign({
+          name: user.name,
+          email: user.email,
+          id: user._id
+        }, process.env.JWT_SECRET, {
+          expiresIn: '1h'
+        });
+        response.cookie('jwtToken',token,{
+          httpOnly: true,
+          secure: false,
+          domain: 'localhost',
+          path: '/'
+        });
+        return response.status(200).json({
+          message: "Successfully logged in!",
+          user: user
+        });
+      }
+      else{
+        return response.status(400).json({
+          message: "Invalid email or password",
+        });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return response.status(500).json({
+        message: "An error occurred during login",
       });
     }
-    
-    const user = await userDao.findByEmail(email);
-const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (user && isPasswordMatch){
-      const token = jwt.sign({
-        name: user.name,
-        email: user.email,
-        id: user._id
-      }, process.env.JWT_SECRET, {
-        expiresIn: '1h'
-      });
-      response.cookie('jwtToken',token,{
-        httpOnly: true,
-        secure: true,
-        domain: 'localhost',
-        path: '/'
-      });
-      return response.status(200).json({
-        message: "Successfully logged in!",
-        user: user
-      });
-    }
-    else{
-    return response.status(400).json({
-      message: "Invalid email or password",
-    });
-  }
-
-},
+  },
   register:async (request, response) => {
     const {name, email, password } = request.body;
   
