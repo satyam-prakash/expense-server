@@ -2,7 +2,7 @@
 const userDao = require('../dao/userDao');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const {OAuth2Client} = require('google-auth-library');
 const authController = {
   login: async (request, response) => {
     try {
@@ -18,6 +18,12 @@ const authController = {
       if (!user) {
         return response.status(400).json({
           message: "Invalid email or password",
+        });
+      }
+      
+      if (user.googleId && !user.password) {
+        return response.status(400).json({
+          message: "Please log in using Google SSO",
         });
       }
       
@@ -127,6 +133,52 @@ isUserLoggedIn: async (request, response) => {
       });
     }
   },
+  googleSso: async (request,response) =>{
+  try{
+    const {idToken} = request.body;
+    if(!idToken){
+      return response.status(401).json({message: 'Invalid request'});
+    }
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const googleResponse = await googleClient.verifyIdToken({
+      idToken: idToken,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = googleResponse.getPayload();
+    const {sub:googleId,name,email} = payload;
+    let user = await userDao.findByEmail(email);
+    if(!user){
+      user = await userDao.create({
+        name: name,
+        email: email,
+        googleId: googleId
+      });
+    }
+    const token = jwt.sign({
+      name: user.name,
+      email: user.email,
+      googleId: user.googleId,
+      id: user._id
+    },process.env.JWT_SECRET,{expiresIn:'1h'});
+
+    response.cookie('jwtToken',token,{
+          httpOnly: true,
+          secure: false,
+          domain: 'localhost',
+          path: '/'
+        });
+        return response.status(200).json({
+          message: "UserAuthenticated",
+          user: user
+        });
+  }
+  catch(error){
+    console.log(error);
+    return response.status(500).json({
+      message: "Internal server error"
+    });
+  }
+},
 };
 
 module.exports = authController;
