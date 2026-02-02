@@ -3,6 +3,7 @@ const userDao = require('../dao/userDao');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {OAuth2Client} = require('google-auth-library');
+const emailService = require('../services/emailServices');
 const authController = {
   login: async (request, response) => {
     try {
@@ -179,6 +180,42 @@ isUserLoggedIn: async (request, response) => {
     });
   }
 },
+  resetPassword: async (request, response) => {
+    try {
+      const {email} = request.body;
+      
+      if (!email) {
+        return response.status(400).json({
+          message: "Email is required"
+        });
+      }
+      
+      const user = await userDao.findByEmail(email);
+      
+      if (!user) {
+        return response.status(404).json({
+          message: "User not found"
+        });
+      }
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      await userDao.updateOtp(email, otp, otpExpiry);
+      const subject = "Password Reset OTP";
+      const body = `Your OTP for password reset is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you did not request this, please ignore this email.`;
+      
+      await emailService.send(email, subject, body);
+      
+      return response.status(200).json({
+        message: "OTP sent to your email"
+      });
+      
+    } catch (error) {
+      console.log(error);
+      return response.status(500).json({
+        message: "Internal server error"
+      });
+    }
+  }
 };
 
 module.exports = authController;

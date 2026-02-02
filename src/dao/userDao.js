@@ -20,7 +20,15 @@ const userDao = {
             throw err;
         }
     }
-}
+},
+    updateOtp: async (email, otp, otpExpiry) => {
+        const user = await User.findOneAndUpdate(
+            {email},
+            {otp, otpExpiry},
+            {new: true}
+        );
+        return user;
+    }
 }
 
 module.exports = userDao;

@@ -3,6 +3,8 @@ const userSchema = new mongoose.Schema({
     name: {type: String,required: true},
     email: {type: String,required: true,unique: true},
     password: {type: String,required: false},
-    googleId: {type: String,required: false}
+    googleId: {type: String,required: false},
+    otp: {type: String,required: false},
+    otpExpiry: {type: Date,required: false}
 });
 module.exports = mongoose.model('User',userSchema);
