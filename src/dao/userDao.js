@@ -1,4 +1,4 @@
-const User = require('../../model/user');
+const User = require('../model/user');
 const userDao = {
     findByEmail: async (email) => {
         const user = await User.findOne({email});
@@ -25,6 +25,15 @@ const userDao = {
         const user = await User.findOneAndUpdate(
             {email},
             {otp, otpExpiry},
+            {new: true}
+        );
+        return user;
+    },
+    
+    updatePassword: async (email, hashedPassword) => {
+        const user = await User.findOneAndUpdate(
+            {email},
+            {password: hashedPassword, otp: null, otpExpiry: null},
             {new: true}
         );
         return user;

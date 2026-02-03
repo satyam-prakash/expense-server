@@ -9,13 +9,21 @@ const emailClient = nodemailer.createTransport({
 });
 const emailService={
     send: async(to,subject,body)=>{
-        const emailOptions = {
-            from: process.env.GOOGLE_EMAIL,
-            to: to,
-            subject: subject,
-            text: body
-        };
-        await emailClient.sendMail(emailOptions);
+        try {
+            const emailOptions = {
+                from: process.env.GOOGLE_EMAIL,
+                to: to,
+                subject: subject,
+                text: body
+            };
+            console.log('Attempting to send email to:', to);
+            const result = await emailClient.sendMail(emailOptions);
+            console.log('Email sent successfully:', result.messageId);
+            return result;
+        } catch (error) {
+            console.error('Email sending failed:', error);
+            throw error;
+        }
     },
 };
 module.exports = emailService;

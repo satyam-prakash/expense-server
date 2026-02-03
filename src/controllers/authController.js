@@ -4,15 +4,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {OAuth2Client} = require('google-auth-library');
 const emailService = require('../services/emailServices');
+const { validationResult } = require('express-validator');
 const authController = {
   login: async (request, response) => {
     try {
-      const {email, password} = request.body;
-      if (!email || !password){
+      // Check validation results
+      const errors = validationResult(request);
+      if (!errors.isEmpty()) {
         return response.status(400).json({
-          message: "Please enter both email and password",
+          message: "Validation failed",
+          errors: errors.array()
         });
       }
+      
+      const {email, password} = request.body;
       
       const user = await userDao.findByEmail(email);
       
@@ -62,14 +67,16 @@ const authController = {
     }
   },
   register:async (request, response) => {
-    const {name, email, password } = request.body;
-  
-    // Return status 400 (client error) if a field it missing
-    if (!name || !email || !password){
+    // Check validation results
+    const errors = validationResult(request);
+    if (!errors.isEmpty()) {
       return response.status(400).json({
-        message: 'Name, Email, Password all are required.'
+        message: "Validation failed",
+        errors: errors.array()
       });
     }
+    
+    const {name, email, password } = request.body;
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     userDao.create({
@@ -136,10 +143,16 @@ isUserLoggedIn: async (request, response) => {
   },
   googleSso: async (request,response) =>{
   try{
-    const {idToken} = request.body;
-    if(!idToken){
-      return response.status(401).json({message: 'Invalid request'});
+    // Check validation results
+    const errors = validationResult(request);
+    if (!errors.isEmpty()) {
+      return response.status(400).json({
+        message: "Validation failed",
+        errors: errors.array()
+      });
     }
+    
+    const {idToken} = request.body;
     const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
     const googleResponse = await googleClient.verifyIdToken({
       idToken: idToken,
@@ -182,13 +195,16 @@ isUserLoggedIn: async (request, response) => {
 },
   resetPassword: async (request, response) => {
     try {
-      const {email} = request.body;
-      
-      if (!email) {
+      // Check validation results
+      const errors = validationResult(request);
+      if (!errors.isEmpty()) {
         return response.status(400).json({
-          message: "Email is required"
+          message: "Validation failed",
+          errors: errors.array()
         });
       }
+      
+      const {email} = request.body;
       
       const user = await userDao.findByEmail(email);
       
@@ -210,9 +226,69 @@ isUserLoggedIn: async (request, response) => {
       });
       
     } catch (error) {
-      console.log(error);
+      console.error('Reset Password Error:', error);
+      console.error('Error details:', error.message, error.stack);
       return response.status(500).json({
-        message: "Internal server error"
+        message: "Internal server error",
+        error: error.message
+      });
+    }
+  },
+  
+  verifyOtpAndResetPassword: async (request, response) => {
+    try {
+      // Check validation results
+      const errors = validationResult(request);
+      if (!errors.isEmpty()) {
+        return response.status(400).json({
+          message: "Validation failed",
+          errors: errors.array()
+        });
+      }
+      
+      const { email, otp, newPassword } = request.body;
+      
+      const user = await userDao.findByEmail(email);
+      
+      if (!user) {
+        return response.status(404).json({
+          message: "User not found"
+        });
+      }
+      
+      if (!user.otp || !user.otpExpiry) {
+        return response.status(400).json({
+          message: "No OTP request found. Please request a new OTP"
+        });
+      }
+      
+      if (new Date() > user.otpExpiry) {
+        return response.status(400).json({
+          message: "OTP has expired. Please request a new OTP"
+        });
+      }
+      
+      if (user.otp !== otp) {
+        return response.status(400).json({
+          message: "Invalid OTP"
+        });
+      }
+      
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      
+      await userDao.updatePassword(email, hashedPassword);
+      
+      return response.status(200).json({
+        message: "Password reset successfully. Redirecting to login..."
+      });
+      
+    } catch (error) {
+      console.error('Verify OTP Error:', error);
+      console.error('Error details:', error.message, error.stack);
+      return response.status(500).json({
+        message: "Internal server error",
+        error: error.message
       });
     }
   }
