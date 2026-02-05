@@ -110,6 +110,26 @@ const groupController = {
                 message: "Error fetching audit log"
             });
         }
+    },
+
+    delete: async(request, response) => {
+        try {
+            const { groupId } = request.params;
+            const deletedGroup = await groupDao.deleteGroup(groupId);
+            if (!deletedGroup) {
+                return response.status(404).json({
+                    message: "Group not found"
+                });
+            }
+            response.status(200).json({
+                message: "Group deleted successfully",
+                group: deletedGroup
+            });
+        } catch (error) {
+            response.status(500).json({
+                message: "Error deleting group"
+            });
+        }
     }
 };
 

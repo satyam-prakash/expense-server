@@ -5,6 +5,7 @@ const mongoose  = require('mongoose');
 const authRoutes = require('./src/routes/authRoutes');
 const groupRoutes = require('./src/routes/groupRoutes');
 const expenseRoutes = require('./src/routes/expenseRoutes');
+const rbacRoutes = require("./src/routes/rbacRoutes");
 const cookieParser = require('cookie-parser');
 mongoose.connect(process.env.MONGO_DB_CONNECTION_URI)
 .then(() => console.log('MongoDB Connected'))
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/auth',authRoutes);
 app.use('/groups',groupRoutes);
+app.use('/users',rbacRoutes);
 app.use('/expenses',expenseRoutes);
 app.listen(5001,()=>{
     console.log('Server is running on port 5001');  

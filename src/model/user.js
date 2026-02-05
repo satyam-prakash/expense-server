@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
     password: {type: String,required: false},
     googleId: {type: String,required: false},
     otp: {type: String,required: false},
-    otpExpiry: {type: Date,required: false}
+    otpExpiry: {type: Date,required: false},
+    adminId: {type: mongoose.Schema.Types.ObjectId, ref: 'User',index: true}
 });
 module.exports = mongoose.model('User',userSchema);

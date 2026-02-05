@@ -56,6 +56,10 @@ const groupDao = {
     getAuditLog: async(groupId) => {
         const group = await Group.findById(groupId).select("paymentStatus.date");
         return group ? group.paymentStatus.date : null;
+    },
+
+    deleteGroup: async(groupId) => {
+        return await Group.findByIdAndDelete(groupId);
     }
 };
 
