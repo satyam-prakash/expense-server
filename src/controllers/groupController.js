@@ -1,12 +1,12 @@
-const groupDao = require('../dao/groupdao');
+const groupDao = require("../dao/groupDao");
 
 const groupController = {
-    create: async (request, response) => {
-        try{
+    create: async(request, response) => {
+        try {
             const user = request.user;
-            const {name, description, membersEmail, thumbnail} = request.body;
+            const { name, description, membersEmail, thumbnail } = request.body;
             let allMembers = [user.email];
-            if (membersEmail && Array.isArray(membersEmail)){
+            if (membersEmail && Array.isArray(membersEmail)) {
                 allMembers = [...new Set([...allMembers, ...membersEmail])];
             }
             const newGroup = await groupDao.createGroup({
@@ -17,74 +17,100 @@ const groupController = {
                 thumbnail,
                 paymentStatus: {
                     amount: 0,
-                    currency: 'INR', 
-                    date: Date.now(), 
-                    isPaid: false
+                    currency: "INR"
                 }
             });
+            response.status(201).json({
+                message: "Group created successfully",
+                groupId: newGroup._id,
+                group: newGroup
+            });
+        } catch (error) {
+            console.error(error);
+            response.status(500).json({
+                message: "Internal server error"
+            });
+        }
+    },
+
+    update: async(request, response) => {
+        try {
+            const updatedGroup = await groupDao.updateGroup(request.body);
+            if (!updatedGroup) {
+                return response.status(404).json({
+                    message: "Group not found"
+                });
+            }
+            response.status(200).json(updatedGroup);
+        } catch (error) {
+            response.status(500).json({
+                message: "Error updating group"
+            });
+        }
+    },
+
+    addMembers: async(request, response) => {
+        try {
+            const { groupId, emails } = request.body;
+            const updatedGroup = await groupDao.addMembers(groupId, ...emails);
+            response.status(200).json(updatedGroup);
+        } catch (error) {
+            response.status(500).json({
+                message: "Error adding members"
+            });
+        }
+    },
+
+    removeMembers: async(request, response) => {
+        try {
+            const { groupId, emails } = request.body;
+            const updatedGroup = await groupDao.removeMembers(groupId, ...emails);
+            response.status(200).json(updatedGroup);
+        } catch (error) {
+            response.status(500).json({
+                message: "Error removing members"
+            });
+        }
+    },
+
+    getGroupsByUser: async(request, response) => {
+        try {
+            const email = request.user.email;
+            const groups = await groupDao.getGroupByEmail(email);
+            response.status(200).json(groups);
+        } catch (error) {
+            response.status(500).json({
+                message: "Error fetching groups"
+            });
+        }
+    },
+
+    getGroupsByPaymentStatus: async(request, response) => {
+        try {
+            const { isPaid } = request.query;
+            const status = isPaid === "true";
+            const groups = await groupDao.getGroupByStatus(status);
+            response.status(200).json(groups);
+        } catch (error) {
+            response.status(500).json({
+                message: "Error filtering groups"
+            });
+        }
+    },
+
+    getAudit: async(request, response) => {
+        try {
+            const { groupId } = request.params;
+            const lastSettled = await groupDao.getAuditLog(groupId);
             response.status(200).json({
-                message: 'Group created',
-                groupId: newGroup._id
+                lastSettled
             });
-        }catch(error){
-            console.log(error);
-            return response.status(500).json({
-                message: 'Internal Server Error'
+        } catch (error) {
+            response.status(500).json({
+                message: "Error fetching audit log"
             });
         }
-    },
-    updateGroup: async (request, response) => {
-        try{
-            const {groupId, name, description, thumbnail, adminEmail, paymentStatus} = request.body;
-            const updatedGroup = await groupDao.updateGroup({
-                groupId, name, description, thumbnail, adminEmail, paymentStatus
-            });
-            response.status(200).json({
-                message: 'Group updated',
-                group: updatedGroup
-            });
-        }catch(error){
-            console.log(error);
-            return response.status(500).json({
-                message: 'Internal Server Error'
-            });
-        }
-    },
-    addMembers: async (request, response) => {
-        try{
-            const {groupId, membersEmail} = request.body;
-        }catch(error){
-            console.log(error);
-            return response.status(500).json({
-                message: 'Internal Server Error'
-            });
-        }
-    },
-    removeMembers: async (request, response) => {
-        try{
-            const {groupId, membersEmail} = request.body;
-            
-        }catch(error){
-            console.log(error);
-            return response.status(500).json({
-                message: 'Internal Server Error'
-            });
-        }
-    },
-    getGroupsByEmail: async (request, response) => {
-        try{
-            const {email} = request.params;
-            const groups =  await groupDao.getGroupByEmails(email);
-            response.status(200).json({
-                message: 'Groups fetched',
-                groups
-            });
-        }catch(error){
-            console.log(error);
-            return response.status(500).json({
-                message: 'Internal Server Error'
-            });
-        }
-    },
+    }
 };
+
 module.exports = groupController;
