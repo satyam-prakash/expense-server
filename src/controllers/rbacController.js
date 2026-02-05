@@ -1,70 +1,79 @@
+const bcrypt = require("bcryptjs");
 const rbacDao = require("../dao/rbacDao");
-
+const { generateTemporaryPassword } = require("../utility/passwordUtil");
+const emailService = require("../services/emailServices");
+const { USER_ROLES } = require("../utility/userRoles");
 
 const rbacController = {
-    create: async(request,response) => {
-        try{
-            
-            const adminUser = request.user;
-            const {name,email,role} = request.body;
-            const user = await rbacDao.create(email,name,role,adminUser._id);
-            return response.status(200).json({
-                message: 'User created',
-                user: user
-            });
-        }catch(error){
-            console.log(error);
-            response.status(500).json({message: 'Internal server error'});
-        }
-    },
-    update: async (request,response) =>{
-        try{
-            const { userId, name, role } = request.body;
-            const updatedUser = await rbacDao.update(userId, name, role);
-            if (!updatedUser) {
-                return response.status(404).json({
-                    message: 'User not found'
-                });
-            }
-            response.status(200).json({
-                message: 'User updated successfully',
-                user: updatedUser
-            });
-        } catch (error){
-            console.log(error);
-                response.status(500).json({message: 'Internal server erorr'});
-            }
-    },
+  create: async (request, response) => {
+    try {
+      const adminUser = request.user;
+      const { name, email, role } = request.body;
 
-    delete: async(request,response)=>{
-        try{
-            const { userId } = request.body;
-            const deletedUser = await rbacDao.delete(userId);
-            if (!deletedUser) {
-                return response.status(404).json({
-                    message: 'User not found'
-                });
-            }
-            response.status(200).json({
-                message: 'User deleted successfully',
-                user: deletedUser
-            });
-        }catch(error){
-            console.log(error)
-            response.status(500).json({message: 'Internal server error'});
-        }
-    },
-    getAllUsers: async(request,response) =>{
-        try{
-            const adminId = request.user.adminId;
-            const users = await rbacDao.getUsersByAdminId(adminId);
-            response.status(200).json({
-                users: users
-            });
-        }catch(error){
-            console.log(error)
-            response.status(500).json({message: 'Internal server error'});
-        }
+      if (!USER_ROLES.includes(role)) {
+        return response.status(400).json({ message: "Invalid role" });
+      }
+
+      const tempPassword = generateTemporaryPassword(8);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+      const user = await rbacDao.create(
+        email,
+        name,
+        role,
+        hashedPassword,
+        adminUser._id
+      );
+
+      try {
+        await emailService.send(
+          email,
+          "Temporary Password",
+          `Your temporary password is: ${tempPassword}`
+        );
+      } catch (error) {
+        console.log(
+          `Error sending email, temporary password is ${tempPassword}`,
+          error
+        );
+      }
+
+      return response.status(200).json({ message: "User created!", user });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({ message: "Internal server error" });
     }
+  },
+  update: async (request, response) => {
+    try {
+      const { name, role, userId } = request.body;
+      const user = await rbacDao.update(userId, name, role);
+      return response.status(200).json({ message: "User updated!", user });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({ message: "Internal server error" });
+    }
+  },
+  delete: async (request, response) => {
+    try {
+      const { userId } = request.body;
+      await rbacDao.delete(userId);
+      return response.status(200).json({ message: "User deleted!" });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({ message: "Internal server error" });
+    }
+  },
+  getAllUsers: async (request, response) => {
+    try {
+      const adminId = request.user.adminId;
+      const users = await rbacDao.getUsersByAdminId(adminId);
+      return response.status(200).json({ users });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({ message: "Internal server error" });
+    }
+  },
 };
 module.exports = rbacController;

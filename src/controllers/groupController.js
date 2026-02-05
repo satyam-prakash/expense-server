@@ -76,9 +76,12 @@ const groupController = {
     getGroupsByUser: async(request, response) => {
         try {
             const email = request.user.email;
+            console.log('Fetching groups for email:', email);
             const groups = await groupDao.getGroupByEmail(email);
+            console.log('Found groups:', groups.length);
             response.status(200).json(groups);
         } catch (error) {
+            console.error('Error in getGroupsByUser:', error);
             response.status(500).json({
                 message: "Error fetching groups"
             });
