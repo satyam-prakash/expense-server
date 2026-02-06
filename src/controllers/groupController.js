@@ -1,4 +1,4 @@
-const groupDao = require("../dao/groupDao");
+const groupDao = require("../dao/groupdao");
 
 const groupController = {
     create: async(request, response) => {

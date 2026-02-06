@@ -1,5 +1,5 @@
 const expenseDao = require('../dao/expenseDao');
-const groupDao = require('../dao/groupDao');
+const groupDao = require('../dao/groupdao');
 const { validationResult } = require('express-validator');
 
 const expenseController = {

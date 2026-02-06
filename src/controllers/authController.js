@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const {OAuth2Client} = require('google-auth-library');
 const emailService = require('../services/emailServices');
 const { validationResult } = require('express-validator');
+const { ADMIN_ROLE } = require("../utility/userRoles");
 const authController = {
   login: async (request, response) => {
     try {
@@ -20,7 +21,9 @@ const authController = {
       const {email, password} = request.body;
       
       const user = await userDao.findByEmail(email);
-      
+      user.role = user.role ? user.role : ADMIN_ROLE;
+      user.adminId = user.adminId ? user.adminId : user._id;
+
       if (!user) {
         return response.status(400).json({
           message: "Invalid email or password",
@@ -39,7 +42,9 @@ const authController = {
         const token = jwt.sign({
           name: user.name,
           email: user.email,
-          id: user._id
+          id: user._id,
+          role: user.role ? user.role : ADMIN_ROLE,
+          adminId: user.adminId ? user.adminId : user._id,
         }, process.env.JWT_SECRET, {
           expiresIn: '1h'
         });
@@ -79,27 +84,30 @@ const authController = {
     const {name, email, password } = request.body;
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    userDao.create({
-      name : name,
-      email: email,
-      password: hashedPassword
-    }).then(u => {
-      return response.status(200).json({
-        message: 'User registered successfully',
-        user: {id: u._id}
-      });      
-    })
-    .catch (error => {
-      if (error.code === 'USER_EXISTS'){
-        return response.status(400).json({
-          message: 'User with this email already exists'
+    userDao
+      .create({
+        name: name,
+        email: email,
+        password: hashedPassword,
+        role: ADMIN_ROLE,
+      })
+      .then((u) => {
+        return response.status(200).json({
+          message: "User registered successfully",
+          user: { id: u._id },
         });
-      }else{
-        return response.status(500).json({
-          message: 'Registration failed',
-        });
-      }
-    });
+      })
+      .catch((error) => {
+        if (error.code === "USER_EXISTS") {
+          return response.status(400).json({
+            message: "User with this email already exists",
+          });
+        } else {
+          return response.status(500).json({
+            message: "Registration failed",
+          });
+        }
+      });
   },
 isUserLoggedIn: async (request, response) => {
     try {
@@ -165,14 +173,17 @@ isUserLoggedIn: async (request, response) => {
       user = await userDao.create({
         name: name,
         email: email,
-        googleId: googleId
+        googleId: googleId,
+        role: ADMIN_ROLE,
       });
     }
     const token = jwt.sign({
       name: user.name,
       email: user.email,
       googleId: user.googleId,
-      id: user._id
+      id: user._id,
+      role: user.role ? user.role : ADMIN_ROLE,
+      adminId: user.adminId ? user.adminId : user._id,
     },process.env.JWT_SECRET,{expiresIn:'1h'});
 
     response.cookie('jwtToken',token,{
