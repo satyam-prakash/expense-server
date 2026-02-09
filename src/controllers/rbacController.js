@@ -14,16 +14,38 @@ const rbacController = {
         return response.status(400).json({ message: "Invalid role" });
       }
 
+      // Check if user already exists
+      const existingUser = await rbacDao.findByEmail(email);
+
+      if (existingUser) {
+        // User exists - grant them access without creating new account or sending password
+        const updatedUser = await rbacDao.grantAccess(
+          existingUser._id,
+          adminUser.adminId || adminUser._id,
+          role
+        );
+
+        return response.status(200).json({
+          message: "Access granted to existing user. They can use their existing credentials to login.",
+          user: updatedUser,
+          isExistingUser: true
+        });
+      }
+
+      // User doesn't exist - create new user with password
       const tempPassword = generateTemporaryPassword(8);
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+      // Use adminUser's adminId if they have one, otherwise use their own ID
+      const adminId = adminUser.adminId || adminUser._id;
 
       const user = await rbacDao.create(
         email,
         name,
         role,
         hashedPassword,
-        adminUser._id
+        adminId
       );
 
       try {
@@ -39,17 +61,14 @@ const rbacController = {
         );
       }
 
-      return response.status(200).json({ message: "User created!", user });
+      return response.status(200).json({
+        message: "User created and temporary password sent to email!",
+        user,
+        isExistingUser: false
+      });
     } catch (error) {
       console.log(error);
-      
-      // Handle duplicate email error
-      if (error.code === 11000) {
-        return response.status(400).json({ 
-          message: "User with this email already exists" 
-        });
-      }
-      
+
       response.status(500).json({ message: "Internal server error" });
     }
   },
@@ -75,7 +94,8 @@ const rbacController = {
   },
   getAllUsers: async (request, response) => {
     try {
-      const adminId = request.user.adminId;
+      // Use user's adminId if they have one, otherwise use their own ID (they are the admin)
+      const adminId = request.user.adminId || request.user.id;
       const users = await rbacDao.getUsersByAdminId(adminId);
       return response.status(200).json({ users });
     } catch (error) {
