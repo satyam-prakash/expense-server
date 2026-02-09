@@ -39,7 +39,10 @@ const groupDao = {
 
     getGroupByEmail: async(email) => {
         return await Group.find({
-            membersEmail: { $regex: new RegExp(`^${email}$`, 'i') }
+            $or: [
+                { membersEmail: email},
+                { adminEmail: email}
+            ]
         });
     },
 
