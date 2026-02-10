@@ -16,5 +16,6 @@ router.get('/group/:groupId/statistics', expenseController.getStatistics);
 router.put('/:expenseId', updateExpenseValidator, expenseController.update);
 router.delete('/:expenseId', expenseController.delete);
 router.patch('/:expenseId/mark-paid', expenseController.markAsPaid);
+router.patch('/:expenseId/settle', expenseController.settleExpense);
 
 module.exports = router;

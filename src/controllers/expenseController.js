@@ -293,6 +293,46 @@ const expenseController = {
         }
     },
 
+    // Settle a single expense (mark all splits as paid)
+    settleExpense: async (request, response) => {
+        try {
+            const { expenseId } = request.params;
+            const user = request.user;
+
+            // Check if expense exists
+            const expense = await expenseDao.getExpenseById(expenseId);
+            if (!expense) {
+                return response.status(404).json({
+                    message: "Expense not found"
+                });
+            }
+
+            // Only the payer, creator, or group admin can settle
+            const group = await groupDao.getGroupById(expense.groupId);
+            const isPayer = expense.paidBy.email === user.email;
+            const isCreator = expense.createdBy === user.email;
+            const isAdmin = group && group.adminEmail === user.email;
+
+            if (!isPayer && !isCreator && !isAdmin) {
+                return response.status(403).json({
+                    message: "Only the payer, creator, or group admin can settle this expense"
+                });
+            }
+
+            const settledExpense = await expenseDao.settleExpense(expenseId);
+
+            response.status(200).json({
+                message: "Expense settled successfully",
+                expense: settledExpense
+            });
+        } catch (error) {
+            console.error('Settle expense error:', error);
+            response.status(500).json({
+                message: "Internal server error"
+            });
+        }
+    },
+
     // Get balance summary
     getBalance: async (request, response) => {
         try {
