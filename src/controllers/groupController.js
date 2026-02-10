@@ -1,7 +1,8 @@
 const groupDao = require("../dao/groupdao");
+const expenseDao = require("../dao/expenseDao");
 
 const groupController = {
-    create: async(request, response) => {
+    create: async (request, response) => {
         try {
             const user = request.user;
             const { name, description, membersEmail, thumbnail } = request.body;
@@ -33,7 +34,7 @@ const groupController = {
         }
     },
 
-    update: async(request, response) => {
+    update: async (request, response) => {
         try {
             const updatedGroup = await groupDao.updateGroup(request.body);
             if (!updatedGroup) {
@@ -49,7 +50,7 @@ const groupController = {
         }
     },
 
-    addMembers: async(request, response) => {
+    addMembers: async (request, response) => {
         try {
             const { groupId, emails } = request.body;
             const updatedGroup = await groupDao.addMembers(groupId, ...emails);
@@ -61,7 +62,7 @@ const groupController = {
         }
     },
 
-    removeMembers: async(request, response) => {
+    removeMembers: async (request, response) => {
         try {
             const { groupId, emails } = request.body;
             const updatedGroup = await groupDao.removeMembers(groupId, ...emails);
@@ -73,7 +74,7 @@ const groupController = {
         }
     },
 
-    getGroupsByUser: async(request, response) => {
+    getGroupsByUser: async (request, response) => {
         try {
             const email = request.user.email;
             console.log('Fetching groups for email:', email);
@@ -88,7 +89,7 @@ const groupController = {
         }
     },
 
-    getGroupsByPaymentStatus: async(request, response) => {
+    getGroupsByPaymentStatus: async (request, response) => {
         try {
             const { isPaid } = request.query;
             const status = isPaid === "true";
@@ -101,7 +102,7 @@ const groupController = {
         }
     },
 
-    getAudit: async(request, response) => {
+    getAudit: async (request, response) => {
         try {
             const { groupId } = request.params;
             const lastSettled = await groupDao.getAuditLog(groupId);
@@ -115,7 +116,7 @@ const groupController = {
         }
     },
 
-    delete: async(request, response) => {
+    delete: async (request, response) => {
         try {
             const { groupId } = request.params;
             const deletedGroup = await groupDao.deleteGroup(groupId);
@@ -131,6 +132,100 @@ const groupController = {
         } catch (error) {
             response.status(500).json({
                 message: "Error deleting group"
+            });
+        }
+    },
+
+    getGroupById: async (request, response) => {
+        try {
+            const { groupId } = request.params;
+            const group = await groupDao.getGroupById(groupId);
+
+            if (!group) {
+                return response.status(404).json({
+                    message: "Group not found"
+                });
+            }
+
+            response.status(200).json(group);
+        } catch (error) {
+            console.error('Get group by ID error:', error);
+            response.status(500).json({
+                message: "Error fetching group"
+            });
+        }
+    },
+
+    settleGroup: async (request, response) => {
+        try {
+            const { groupId } = request.params;
+            const user = request.user;
+
+            // Verify group exists and user is admin
+            const group = await groupDao.getGroupById(groupId);
+            if (!group) {
+                return response.status(404).json({
+                    message: "Group not found"
+                });
+            }
+
+            if (group.adminEmail !== user.email) {
+                return response.status(403).json({
+                    message: "Only group admin can settle the group"
+                });
+            }
+
+            // Get final balance summary before settling
+            const balanceSummary = await expenseDao.getGroupBalanceSummary(groupId);
+
+            // Settle the group
+            const settledGroup = await expenseDao.settleGroup(groupId);
+
+            response.status(200).json({
+                message: "Group settled successfully",
+                group: settledGroup,
+                finalBalances: balanceSummary
+            });
+        } catch (error) {
+            console.error('Settle group error:', error);
+            response.status(500).json({
+                message: "Error settling group"
+            });
+        }
+    },
+
+    getGroupBalanceSummary: async (request, response) => {
+        try {
+            const { groupId } = request.params;
+            const user = request.user;
+
+            // Verify group exists and user is a member
+            const group = await groupDao.getGroupById(groupId);
+            if (!group) {
+                return response.status(404).json({
+                    message: "Group not found"
+                });
+            }
+
+            // Check if user is either a member or the admin of the group
+            if (!group.membersEmail.includes(user.email) && group.adminEmail !== user.email) {
+                return response.status(403).json({
+                    message: "You are not a member of this group"
+                });
+            }
+
+            const balanceSummary = await expenseDao.getGroupBalanceSummary(groupId);
+
+            response.status(200).json({
+                groupId,
+                groupName: group.name,
+                isSettled: group.isSettled,
+                balances: balanceSummary
+            });
+        } catch (error) {
+            console.error('Get balance summary error:', error);
+            response.status(500).json({
+                message: "Error fetching balance summary"
             });
         }
     }

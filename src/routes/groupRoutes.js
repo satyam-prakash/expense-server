@@ -45,5 +45,20 @@ router.delete(
     authorizeMiddleware("group:delete"),
     groupController.delete,
 );
+router.post(
+    "/:groupId/settle",
+    authorizeMiddleware("group:update"),
+    groupController.settleGroup,
+);
+router.get(
+    "/:groupId/balance-summary",
+    authorizeMiddleware("group:view"),
+    groupController.getGroupBalanceSummary,
+);
+router.get(
+    "/:groupId",
+    authorizeMiddleware("group:view"),
+    groupController.getGroupById,
+);
 
 module.exports = router;

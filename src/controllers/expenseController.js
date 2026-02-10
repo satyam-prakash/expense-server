@@ -6,9 +6,13 @@ const expenseController = {
     // Create a new expense
     create: async (request, response) => {
         try {
+            console.log('Create expense request body:', JSON.stringify(request.body, null, 2));
+            console.log('User from JWT:', request.user);
+
             // Check validation results
             const errors = validationResult(request);
             if (!errors.isEmpty()) {
+                console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
                 return response.status(400).json({
                     message: "Validation failed",
                     errors: errors.array()
@@ -26,7 +30,11 @@ const expenseController = {
                 });
             }
 
-            if (!group.membersEmail.includes(user.email)) {
+            // Check if user is either a member or the admin of the group
+            const isAdmin = group.adminEmail === user.email;
+            const isMember = group.membersEmail.includes(user.email);
+
+            if (!isMember && !isAdmin) {
                 return response.status(403).json({
                     message: "You are not a member of this group"
                 });
@@ -110,7 +118,8 @@ const expenseController = {
                 });
             }
 
-            if (!group.membersEmail.includes(user.email)) {
+            // Check if user is either a member or the admin of the group
+            if (!group.membersEmail.includes(user.email) && group.adminEmail !== user.email) {
                 return response.status(403).json({
                     message: "You are not a member of this group"
                 });
@@ -265,7 +274,7 @@ const expenseController = {
             const user = request.user;
 
             const updatedExpense = await expenseDao.markSplitAsPaid(expenseId, user.email);
-            
+
             if (!updatedExpense) {
                 return response.status(404).json({
                     message: "Expense not found or you are not part of this expense"
@@ -314,7 +323,8 @@ const expenseController = {
                 });
             }
 
-            if (!group.membersEmail.includes(user.email)) {
+            // Check if user is either a member or the admin of the group
+            if (!group.membersEmail.includes(user.email) && group.adminEmail !== user.email) {
                 return response.status(403).json({
                     message: "You are not a member of this group"
                 });

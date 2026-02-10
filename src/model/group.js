@@ -1,12 +1,14 @@
 const mongoose = require('mongoose')
 
 const groupSchema = new mongoose.Schema({
-    name: {type:String, required:true},
-    description: { type: String, required: false},
-    adminEmail: {type: String, required: true},
-    createdAt: {type: Date, default: Date.now()},
+    name: { type: String, required: true },
+    description: { type: String, required: false },
+    adminEmail: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now() },
     membersEmail: [String],
-    thumbnail: {type: String, required: false},
+    thumbnail: { type: String, required: false },
+    isSettled: { type: Boolean, default: false },
+    settledAt: { type: Date },
     paymentStatus: {
         amount: Number,
         currency: String,
@@ -15,4 +17,4 @@ const groupSchema = new mongoose.Schema({
     }
 })
 
-module.exports = mongoose.model('Group',groupSchema)
+module.exports = mongoose.model('Group', groupSchema)
