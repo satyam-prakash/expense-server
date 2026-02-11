@@ -119,17 +119,32 @@ const groupController = {
     delete: async (request, response) => {
         try {
             const { groupId } = request.params;
-            const deletedGroup = await groupDao.deleteGroup(groupId);
-            if (!deletedGroup) {
+            const user = request.user;
+
+            // First fetch the group to check ownership
+            const group = await groupDao.getGroupById(groupId);
+
+            if (!group) {
                 return response.status(404).json({
                     message: "Group not found"
                 });
             }
+
+            // Check if user is the admin of the group
+            if (group.adminEmail !== user.email) {
+                return response.status(403).json({
+                    message: "Only group admin can delete the group"
+                });
+            }
+
+            const deletedGroup = await groupDao.deleteGroup(groupId);
+
             response.status(200).json({
                 message: "Group deleted successfully",
                 group: deletedGroup
             });
         } catch (error) {
+            console.error("Error deleting group:", error);
             response.status(500).json({
                 message: "Error deleting group"
             });

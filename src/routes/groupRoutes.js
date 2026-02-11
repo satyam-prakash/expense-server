@@ -42,7 +42,7 @@ router.get(
 );
 router.delete(
     "/:groupId",
-    authorizeMiddleware("group:delete"),
+    authorizeMiddleware("group:view"),
     groupController.delete,
 );
 router.post(
